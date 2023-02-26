@@ -4,13 +4,16 @@ from datetime import datetime
 
 
 class Logger:
-    def __init__(self, filename: str, path: str = '/logs'):
+    def __init__(self, filename: str, log_dir: str = 'logs'):
         self.filename = filename
-        self.path = path
+        self.log_dir = log_dir
+
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
 
     def __call__(self, func: Callable) -> Callable:
         
-        def wrapper(*args: Any, **kwargs: Any) -> Callable:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             result = None
             operation_success = False
             error_message = ''
@@ -31,7 +34,7 @@ class Logger:
                         f"Error: {error_message if error_message else ''}"\
                         f"Time taken: {operation_time}s\n"
             
-            with open(f'{os.path.join(self.path, self.filename)}', 'a') as txt_writer:
+            with open(f'{os.path.join(self.log_dir, self.filename)}', 'a') as txt_writer:
                 txt_writer.write(log_message)
             
             return result
