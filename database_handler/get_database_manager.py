@@ -13,7 +13,7 @@ class SingletonMeta(type):
 
     def __call__(cls: Self, *args: Any, **kwargs: Any) -> Self:
         if cls not in cls._instances:
-            instance = cls.super().__init__(*args, **kwargs)
+            instance = super().__call__(*args, **kwargs)
             cls._instances[cls] = instance
         return cls._instances[cls]
     
@@ -81,7 +81,9 @@ class DatabaseManager(metaclass=SingletonMeta):
     
 
 def main() -> None:
-    ...
+    db_manager = DatabaseManager.from_environment_variable(
+        EnvironmentVariableReader('CONNECTION_URL')
+    )
 
 if __name__ == '__main__':
     main()
