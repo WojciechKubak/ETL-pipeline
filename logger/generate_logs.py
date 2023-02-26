@@ -2,10 +2,6 @@ from typing import Callable, Any
 import os
 from datetime import datetime
 
-import sys
-parent_dir = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
-sys.path.append(parent_dir)
-
 
 class Logger:
     def __init__(self, filename: str, log_dir: str = '../logs'):
