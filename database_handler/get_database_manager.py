@@ -85,12 +85,3 @@ class DatabaseManager(metaclass=SingletonMeta):
         dbm.build_engine()
         dbm.test_connection()
         return dbm
-    
-
-def main() -> None:
-    DatabaseManager.from_environment_variable(
-        EnvironmentVariableReader('CONNECTION_URL')
-    )
-
-if __name__ == '__main__':
-    main()
