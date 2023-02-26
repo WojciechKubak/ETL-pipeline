@@ -7,6 +7,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
 import os
 
+import sys
+parent_dir = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
+sys.path.append(parent_dir)
+from logger.generate_logs import Logger
+
 
 class SingletonMeta(type):
     _instances = {}
@@ -41,6 +46,7 @@ class DatabaseManager(metaclass=SingletonMeta):
             self.build_engine()
         return self._engine
 
+    @Logger('database_manager_logs.txt')
     def build_engine(self) -> None:
         if not self.connection_url:
             raise ValueError('Connection string cannot be empty.')
@@ -49,7 +55,8 @@ class DatabaseManager(metaclass=SingletonMeta):
             self._engine_initialized = True
         except SQLAlchemyError as err:
             raise ValueError(f'Error occurred while building engine: {err}.')
-
+    
+    @Logger('database_manager_logs.txt')
     def test_connection(self) -> None:
         if not self._engine_initialized:
             self.build_engine()
@@ -81,7 +88,7 @@ class DatabaseManager(metaclass=SingletonMeta):
     
 
 def main() -> None:
-    db_manager = DatabaseManager.from_environment_variable(
+    DatabaseManager.from_environment_variable(
         EnvironmentVariableReader('CONNECTION_URL')
     )
 

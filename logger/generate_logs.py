@@ -2,9 +2,13 @@ from typing import Callable, Any
 import os
 from datetime import datetime
 
+import sys
+parent_dir = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
+sys.path.append(parent_dir)
+
 
 class Logger:
-    def __init__(self, filename: str, log_dir: str = 'logs'):
+    def __init__(self, filename: str, log_dir: str = '../logs'):
         self.filename = filename
         self.log_dir = log_dir
 
@@ -28,7 +32,7 @@ class Logger:
             end_time = datetime.now()
             operation_time = (end_time - start_time).total_seconds()
 
-            log_message = f"{start_time.strftime('%Y-%m-%d %H:%M:%S')}:" \
+            log_message = f"{start_time.strftime('%Y-%m-%d %H:%M:%S')}: " \
                         f"{func.__name__} - "\
                         f"{'Success' if operation_success else 'Failure'} - "\
                         f"Error: {error_message if error_message else ''}"\
