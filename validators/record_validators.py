@@ -21,9 +21,9 @@ class Validator(ABC):
         return re.match(regex, text) is not None
 
     @staticmethod
-    def check_value_condition(condition: Callable[[Union[int, float, Decimal]], bool], 
-            value: Union[int, float, Decimal]) -> bool:
-        return condition(value)
+    def check_condition(condition: Callable[[Any], bool], 
+            obj: Any) -> bool:
+        return condition(obj)
     
     @staticmethod
     def check_type(obj: str, element: Any) -> bool:
@@ -49,6 +49,7 @@ class RecordValidator(Validator):
 
     def _check_constraint(self, key: str, data: dict[str, Any], 
             constraint: dict[str, Any]) -> None:
+        
         if not (value_to_validate := data.get(key)):
             self.errors[key] = 'key not found'
             return 
@@ -63,7 +64,7 @@ class RecordValidator(Validator):
                     if not self.match_regex(constraint_value, value_to_validate):
                         self.errors[key].append('no match for regex')
                 case 'condition':
-                   if not self.check_value_condition(constraint_value, value_to_validate):
+                   if not self.check_condition(constraint_value, value_to_validate):
                        self.errors[key].append('does not meet the condition')
                 case _:
                     raise ValueError('Constraint not found')
@@ -82,64 +83,75 @@ class RecordValidator(Validator):
 
 @dataclass(frozen=True, order=True)
 class ConstraintsBuilder:
-    _constraints: dict[dict[str, Any]] = field(
-        default_factory=dict, init=False)
+    _constraints: dict[list[dict[str, list]]] = field(
+        default_factory=lambda: defaultdict(list), init=False)
     
     def add_regex(self, key: str, regex: str) -> Self:
-        self._constraints[key] = {
-            'type': 'str',
-            'regex': regex
-        }
+        if key not in self._constraints:
+            self._constraints[key].append(
+                {'type': 'str'}
+            )
+        self._constraints[key].append(
+            {'regex': regex}
+        )
         return self
 
-    def add_value_check(self, key: str, 
-            condition: Callable[[Union[int, float, Decimal]], bool]) -> Self:
-        self._constraints[key] = {
-            'type': 'numeric',
-            'condition': condition
-        }
+    def add_value_check(self, key: str, condition: Callable[[Number], bool]) -> Self:
+        if key not in self._constraints:
+            self._constraints[key].append(
+                {'type': 'numeric'}
+            )
+        self._constraints[key].append(
+            {'condition': condition}
+        )
         return self
     
     def add_list_check(self, key: str, condition: Callable[[list[Any]], bool]) -> Self:
-        self._constraints[key] = {
-            'type': 'list',
-            'condition': condition
-        }
+        if key not in self._constraints:
+            self._constraints[key].append(
+                {'type': 'list'}
+            )
+        self._constraints[key].append(
+            {'condition': condition}
+        )
         return self
     
     def add_bool_check(self, key: str, condition: Callable[[bool], bool]) -> Self:
-        self._constraints[key] = {
-            'type': 'bool',
-            'condition': condition
-        }
+        if key not in self._constraints:
+            self._constraints[key].append(
+                {'type': 'bool'}
+            )
+        self._constraints[key].append(
+            {'condition': condition}
+        )
         return self
 
     def build(self) -> dict[dict[str, Any]]:
-        return self._constraints
+        return dict(self._constraints)
         
 
 def main() -> None:
     constraints = ConstraintsBuilder()\
-        .add_regex('name', r'^[A-Z][a-z]+$')\
-        .add_value_check('value', lambda x: x > 5)\
-        .add_value_check('value', lambda x: 0 <= x <= 10)\
-        .add_list_check('products', lambda x: len(x) > 4)\
-        .add_bool_check('is_active', lambda x: not x)\
+        .add_regex('name', '[A-Z][a-z]+')\
+        .add_value_check('value', lambda x: x > 0)\
+        .add_regex('name', '[a-zA-Z]{6}+')\
         .build()
     
-    record = {
-        'name': 'Wojtus',
-        'value': 11,
-        'products': [1, 2, 3],
-        'is_active': True
-    }
+    print(constraints)
+    
+    # record = {
+    #     'name': 'Wojtus',
+    #     'value': 11,
+    #     'products': [1, 2, 3],
+    #     'is_active': True
+    # }
 
 
-    rv = RecordValidator(constraints)
+    # rv = RecordValidator(constraints)
 
-    print(
-        rv.validate(record)
-    )
+    # print(
+    #     rv.validate(record)
+    # )
     
 
 if __name__ == '__main__':
