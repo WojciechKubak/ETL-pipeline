@@ -1,20 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-
 from typing import Union, Any, Self, Callable
 from decimal import Decimal
-import re
-
 from numbers import Number
-
 from collections import defaultdict
-
-
-import sys
-import os
-parent_dir = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
-sys.path.append(parent_dir)
-from logger.generate_logs import Logger
+import re
 
 
 @dataclass
@@ -67,23 +57,21 @@ class RecordValidator(Validator):
             match constraint_name:
                 case 'type':
                     if not self.check_type(constraint_value, value_to_validate):
-                        self.errors[key].append('not match for type')
+                        self.errors[key].append('incorrect type')
                         return 
                 case 'regex':
                     if not self.match_regex(constraint_value, value_to_validate):
                         self.errors[key].append('no match for regex')
                 case 'condition':
                    if not self.check_value_condition(constraint_value, value_to_validate):
-                       self.errors[key].append('no match for expression')
+                       self.errors[key].append('does not meet the condition')
                 case _:
                     raise ValueError('Constraint not found')
                 
-    # @Logger('record_validator.txt')
     def validate(self, data: dict[str, Any]) -> dict[str, Any]:
         self.errors = defaultdict(list)
 
         for key, constraint in self._constraints.items():
-            print(key, constraint)
             self._check_constraint(key, data, constraint) 
 
         if len(self.errors) > 0:
@@ -105,9 +93,23 @@ class ConstraintsBuilder:
         return self
 
     def add_value_check(self, key: str, 
-                condition: Callable[[Union[int, float, Decimal]], bool]) -> Self:
+            condition: Callable[[Union[int, float, Decimal]], bool]) -> Self:
         self._constraints[key] = {
             'type': 'numeric',
+            'condition': condition
+        }
+        return self
+    
+    def add_list_check(self, key: str, condition: Callable[[list[Any]], bool]) -> Self:
+        self._constraints[key] = {
+            'type': 'list',
+            'condition': condition
+        }
+        return self
+    
+    def add_bool_check(self, key: str, condition: Callable[[bool], bool]) -> Self:
+        self._constraints[key] = {
+            'type': 'bool',
             'condition': condition
         }
         return self
@@ -121,23 +123,23 @@ def main() -> None:
         .add_regex('name', r'^[A-Z][a-z]+$')\
         .add_value_check('value', lambda x: x > 5)\
         .add_value_check('value', lambda x: 0 <= x <= 10)\
+        .add_list_check('products', lambda x: len(x) > 4)\
+        .add_bool_check('is_active', lambda x: not x)\
         .build()
     
-    [print(key, val) for key, val in constraints.items()]
-    
-    # record = {
-    #     'name': 'wwwwwŚ',
-    #     'value': -3
-    # }
+    record = {
+        'name': 'Wojtus',
+        'value': 11,
+        'products': [1, 2, 3],
+        'is_active': True
+    }
 
 
-    # rv = RecordValidator(constraints)
+    rv = RecordValidator(constraints)
 
-    # print(
-    #     rv.validate(record)
-    # )
-    
-
+    print(
+        rv.validate(record)
+    )
     
 
 if __name__ == '__main__':
