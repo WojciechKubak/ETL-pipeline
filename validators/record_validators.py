@@ -5,10 +5,21 @@ from typing import Union, Any, Self, Callable
 from decimal import Decimal
 import re
 
+from numbers import Number
 
-@dataclass(frozen=True, order=True)
+from collections import defaultdict
+
+
+import sys
+import os
+parent_dir = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
+sys.path.append(parent_dir)
+from logger.generate_logs import Logger
+
+
+@dataclass
 class Validator(ABC):
-    errors: dict[str, str] = field(default_factory=dict, init=False)
+    errors: dict[str, list] = field(default_factory=lambda: defaultdict(list), init=False)
 
     @abstractmethod
     # Transparent validation
@@ -25,53 +36,54 @@ class Validator(ABC):
         return condition(value)
     
     @staticmethod
-    def match_type(data_type: type, text: Any) -> bool:
-        return isinstance(text, data_type)
-    
-    @staticmethod
-    def validate_key_value(key: str, data: dict[str, Any], 
-            condition: Callable[[Any], bool]) -> str:
-        if key not in data:
-            return 'key not found'
-        
-        if not condition(data[key]):
-            return 'not correct'
-        
-        return ''
+    def check_type(obj: str, element: Any) -> bool:
+        match obj:
+            case 'numeric':
+                return isinstance(element, Number)
+            case 'str':
+                return isinstance(element, str)
+            case 'bool':
+                return isinstance(element, bool)
+            case 'list':
+                return isinstance(element, list)
+        return False
 
     def errors_to_str(self) -> str:
         return ', '.join(f'{key}: {message}' 
                 for key, message in self.errors.items())
     
 
-@dataclass(frozen=True, order=True)
+@dataclass
 class RecordValidator(Validator):
     _constraints: dict[dict[str, Any]]
 
     def _check_constraint(self, key: str, data: dict[str, Any], 
             constraint: dict[str, Any]) -> None:
+        if not (value_to_validate := data.get(key)):
+            self.errors[key] = 'key not found'
+            return 
+        
         for constraint_name, constraint_value in constraint.items():
-
-            value_to_validate = data[key]
-
             match constraint_name:
                 case 'type':
-                    if not self.match_type(constraint_value, value_to_validate):
-                        self.errors[key] = 'not specified type.'
+                    if not self.check_type(constraint_value, value_to_validate):
+                        self.errors[key].append('not match for type')
+                        return 
                 case 'regex':
                     if not self.match_regex(constraint_value, value_to_validate):
-                        self.errors[key] = 'no match for regex.'
+                        self.errors[key].append('no match for regex')
                 case 'condition':
                    if not self.check_value_condition(constraint_value, value_to_validate):
-                       self.errors[key] = 'no match for expression.'
+                       self.errors[key].append('no match for expression')
                 case _:
-                    raise ValueError('Constraint not found.')
+                    raise ValueError('Constraint not found')
                 
-
+    # @Logger('record_validator.txt')
     def validate(self, data: dict[str, Any]) -> dict[str, Any]:
-        # self.errors = {}
+        self.errors = defaultdict(list)
 
         for key, constraint in self._constraints.items():
+            print(key, constraint)
             self._check_constraint(key, data, constraint) 
 
         if len(self.errors) > 0:
@@ -87,7 +99,7 @@ class ConstraintsBuilder:
     
     def add_regex(self, key: str, regex: str) -> Self:
         self._constraints[key] = {
-            'type': str,
+            'type': 'str',
             'regex': regex
         }
         return self
@@ -95,7 +107,7 @@ class ConstraintsBuilder:
     def add_value_check(self, key: str, 
                 condition: Callable[[Union[int, float, Decimal]], bool]) -> Self:
         self._constraints[key] = {
-            'type': float,
+            'type': 'numeric',
             'condition': condition
         }
         return self
@@ -107,19 +119,26 @@ class ConstraintsBuilder:
 def main() -> None:
     constraints = ConstraintsBuilder()\
         .add_regex('name', r'^[A-Z][a-z]+$')\
-        .add_value_check('USD', lambda x: 0 <= x <= 10)\
+        .add_value_check('value', lambda x: x > 5)\
+        .add_value_check('value', lambda x: 0 <= x <= 10)\
         .build()
     
-    rv = RecordValidator(constraints)
+    [print(key, val) for key, val in constraints.items()]
+    
+    # record = {
+    #     'name': 'wwwwwŚ',
+    #     'value': -3
+    # }
 
-    example_record = {
-        'name': 'Wojtek',
-        'USD': 4.67,
-    }
 
-    print(
-        rv.validate(example_record)
-    )
+    # rv = RecordValidator(constraints)
+
+    # print(
+    #     rv.validate(record)
+    # )
+    
+
+    
 
 if __name__ == '__main__':
     main()

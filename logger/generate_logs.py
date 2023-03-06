@@ -31,7 +31,7 @@ class Logger:
             log_message = f"{start_time.strftime('%Y-%m-%d %H:%M:%S')}: " \
                         f"{func.__name__} - "\
                         f"{'Success' if operation_success else 'Failure'} - "\
-                        f"Error: {error_message if error_message else ''}"\
+                        f"Error: {f'({error_message})' if error_message else 'None'} - "\
                         f"Time taken: {operation_time}s\n"
             
             with open(f'{os.path.join(self.log_dir, self.filename)}', 'a') as txt_writer:
