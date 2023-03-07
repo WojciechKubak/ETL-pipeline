@@ -1,15 +1,18 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Union, Any, Self, Callable
-from decimal import Decimal
+
+from typing import Any, Self, Callable
 from numbers import Number
+
 from collections import defaultdict
+
 import re
 
 
 @dataclass
 class Validator(ABC):
-    errors: dict[str, list] = field(default_factory=lambda: defaultdict(list), init=False)
+    errors: dict[str, list] = field(
+        default_factory=lambda: defaultdict(list), init=False)
 
     @abstractmethod
     # Transparent validation
@@ -21,12 +24,11 @@ class Validator(ABC):
         return re.match(regex, text) is not None
 
     @staticmethod
-    def check_condition(condition: Callable[[Any], bool], 
-            obj: Any) -> bool:
+    def check_condition(condition: Callable[[Any], bool], obj: Any) -> bool:
         return condition(obj)
     
     @staticmethod
-    def check_type(obj: str, element: Any) -> bool:
+    def check_instance(obj: str, element: Any) -> bool:
         match obj:
             case 'numeric':
                 return isinstance(element, Number)
@@ -48,24 +50,25 @@ class RecordValidator(Validator):
     _constraints: dict[dict[str, Any]]
 
     def _check_constraint(self, key: str, data: dict[str, Any], 
-            constraint: dict[str, Any]) -> None:
-        
+        constraint: dict[str, Any]) -> None:
         if not (value_to_validate := data.get(key)):
             self.errors[key] = 'key not found'
             return 
         
-        for constraint_name, constraint_value in constraint.items():
+        for constraint_name, constraint_values in constraint.items():
             match constraint_name:
                 case 'type':
-                    if not self.check_type(constraint_value, value_to_validate):
+                    if not self.check_instance(constraint_values, value_to_validate):
                         self.errors[key].append('incorrect type')
                         return 
                 case 'regex':
-                    if not self.match_regex(constraint_value, value_to_validate):
-                        self.errors[key].append('no match for regex')
+                    for i, expression in enumerate(constraint_values, start=1):
+                        if not self.match_regex(expression, value_to_validate):
+                            self.errors[key].append(f'does not match regex number {i}')
                 case 'condition':
-                   if not self.check_condition(constraint_value, value_to_validate):
-                       self.errors[key].append('does not meet the condition')
+                    for i, condition in enumerate(constraint_values, start=1):
+                        if not self.check_condition(condition, value_to_validate):
+                            self.errors[key].append(f'does not match condition number: {i}')
                 case _:
                     raise ValueError('Constraint not found')
                 
@@ -83,79 +86,37 @@ class RecordValidator(Validator):
 
 @dataclass(frozen=True, order=True)
 class ConstraintsBuilder:
-    _constraints: dict[list[dict[str, list]]] = field(
-        default_factory=lambda: defaultdict(list), init=False)
+    _constraints: dict[str, dict[str, list[Any]]] = field(
+        default_factory=lambda: defaultdict(dict), init=False)
     
-    def add_regex(self, key: str, regex: str) -> Self:
-        if key not in self._constraints:
-            self._constraints[key].append(
-                {'type': 'str'}
-            )
-        self._constraints[key].append(
-            {'regex': regex}
-        )
+    def _add_condition_check(self, constraint_type: str, condition_name: str, 
+            key: str, condition: Callable[[Any], bool]) -> None:
+        if condition_name not in self._constraints[key]:
+            self._constraints[key][condition_name] = []
+        self._constraints[key][condition_name].append(condition)
+        self._constraints[key]['type'] = constraint_type
+    
+    def add_regex(self, key: str, regex: str) -> 'ConstraintsBuilder':
+        if 'regex' not in self._constraints[key]:
+            self._constraints[key]['regex'] = []
+        self._constraints[key]['regex'].append(regex)
+        self._constraints[key]['type'] = 'str'
         return self
 
     def add_value_check(self, key: str, condition: Callable[[Number], bool]) -> Self:
-        if key not in self._constraints:
-            self._constraints[key].append(
-                {'type': 'numeric'}
-            )
-        self._constraints[key].append(
-            {'condition': condition}
-        )
+        self._add_condition_check('numeric', 'condition', key, condition)
         return self
     
     def add_list_check(self, key: str, condition: Callable[[list[Any]], bool]) -> Self:
-        if key not in self._constraints:
-            self._constraints[key].append(
-                {'type': 'list'}
-            )
-        self._constraints[key].append(
-            {'condition': condition}
-        )
+        self._add_condition_check('list', 'condition', key, condition)
         return self
     
     def add_bool_check(self, key: str, condition: Callable[[bool], bool]) -> Self:
-        if key not in self._constraints:
-            self._constraints[key].append(
-                {'type': 'bool'}
-            )
-        self._constraints[key].append(
-            {'condition': condition}
-        )
+        self._add_condition_check('bool', 'condition', key, condition)
         return self
-
-    def build(self) -> dict[dict[str, Any]]:
+    
+    def build(self) -> dict[str, dict[str, Any]]:
         return dict(self._constraints)
-        
-
-def main() -> None:
-    constraints = ConstraintsBuilder()\
-        .add_regex('name', '[A-Z][a-z]+')\
-        .add_value_check('value', lambda x: x > 0)\
-        .add_regex('name', '[a-zA-Z]{6}+')\
-        .build()
-    
-    print(constraints)
-    
-    # record = {
-    #     'name': 'Wojtus',
-    #     'value': 11,
-    #     'products': [1, 2, 3],
-    #     'is_active': True
-    # }
-
-
-    # rv = RecordValidator(constraints)
-
-    # print(
-    #     rv.validate(record)
-    # )
-    
-
-if __name__ == '__main__':
-    main()
 
 
 
