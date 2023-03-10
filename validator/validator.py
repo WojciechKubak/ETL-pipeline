@@ -37,44 +37,14 @@ class Validator(ABC):
 
     @staticmethod
     def match_regex(regex: str, text: str) -> bool:
-        """
-        Matches a regular expression against a string.
-
-        Args:
-            regex (str): The regular expression to match.
-            text (str): The string to match against.
-
-        Returns:
-            bool: True if the regex matches the string, False otherwise.
-        """
         return re.match(regex, text) is not None
 
     @staticmethod
     def check_condition(condition: Callable[[Any], bool], obj: Any) -> bool:
-        """
-        Checks a condition against an object.
-
-        Args:
-            condition (Callable[[Any], bool]): The condition to check.
-            obj (Any): The object to check the condition against.
-
-        Returns:
-            bool: True if the condition is met, False otherwise.
-        """
         return condition(obj)
     
     @staticmethod
     def check_instance(obj: str, element: Any) -> bool:
-        """
-        Checks if an element is an instance of a given type.
-
-        Args:
-            obj (str): The name of the type to check for.
-            element (Any): The element to check.
-
-        Returns:
-            bool: True if the element is an instance of the given type, False otherwise.
-        """
         match obj:
             case 'numeric':
                 return isinstance(element, Number)
@@ -240,40 +210,14 @@ class ConstraintsBuilder:
         return self
     
     def add_list_check(self, key: str, condition: Callable[[list[Any]], bool]) -> Self:
-        """
-        Add a list check to the validator.
-        
-        Args:
-            key (str): The key to validate.
-            condition (Callable[[list[Any]], bool]): The condition that the list must meet.
-
-        Returns:
-            Self: The validator instance.
-        """
         self._add_condition_check('list', 'condition', key, condition)
         return self
     
     def add_bool_check(self, key: str, condition: Callable[[bool], bool]) -> Self:
-        """
-        Add a bool check to the validator.
-        
-        Args:
-            key (str): The key to validate.
-            condition (Callable[[bool], bool]): The condition that the boolean value must meet.
-
-        Returns:
-            Self: The validator instance.
-        """
         self._add_condition_check('bool', 'condition', key, condition)
         return self
     
     def build(self) -> dict[str, dict[str, Any]]:
-        """
-        Build the validator object.
-    
-        Returns:
-            dict[str, dict[str, Any]]: A dictionary representation of the validator constraints.
-        """
         return dict(self._constraints)
 
 
